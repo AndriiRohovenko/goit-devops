@@ -16,6 +16,8 @@
 ```
 lesson-5/
 ├── main.tf
+├── variables.tf
+├── terraform.tfvars
 ├── backend.tf
 ├── outputs.tf
 ├── modules/
@@ -62,7 +64,7 @@ terraform apply -target=module.s3_backend
 
 ### Крок 2 — підключити S3 бекенд і перенести стан
 
-Перевірте, що в [backend.tf](backend.tf) значення `bucket` і `dynamodb_table` такі самі, як у [main.tf](main.tf).
+Перевірте, що в [backend.tf](backend.tf) значення `bucket` і `dynamodb_table` такі самі, як у [terraform.tfvars](terraform.tfvars) (поля `bucket_name` і `table_name`).
 
 Підключаємо бекенд і переносимо стан:
 
@@ -113,7 +115,7 @@ terraform destroy
 
 ## Важливо про імена
 
-- Назва S3 bucket має бути **унікальною в усьому AWS**. Якщо Terraform каже, що bucket вже існує — просто змініть назву в [lesson-5/main.tf](main.tf) та [lesson-5/backend.tf](backend.tf).
+- Назва S3 bucket має бути **унікальною в усьому AWS**. Якщо Terraform каже, що bucket вже існує — змініть `bucket_name` в [terraform.tfvars](terraform.tfvars) та значення `bucket` в [backend.tf](backend.tf).
 
 ## Після перевірки (щоб не було витрат)
 
