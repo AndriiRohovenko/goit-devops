@@ -1,4 +1,3 @@
-/*
 terraform {
   backend "s3" {
     bucket         = "andrii-goit-terraform-state-lesson-5"
@@ -8,4 +7,3 @@ terraform {
     encrypt        = true
   }
 }
-*/
