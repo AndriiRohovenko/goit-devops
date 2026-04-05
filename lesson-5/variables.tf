@@ -3,6 +3,18 @@ variable "bucket_name" {
   type        = string
 }
 
+variable "aws_region" {
+  description = "AWS region for provider-managed resources"
+  type        = string
+  default     = "eu-central-1"
+}
+
+variable "backend_force_destroy" {
+  description = "If true, Terraform can delete the backend bucket even when it contains state objects"
+  type        = bool
+  default     = true
+}
+
 variable "table_name" {
   description = "DynamoDB table name (used for state lock)"
   type        = string

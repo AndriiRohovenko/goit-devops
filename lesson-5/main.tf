@@ -10,14 +10,15 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-west-2"
+  region = var.aws_region
 }
 
 # S3 + DynamoDB for Terraform state (remote backend)
 module "s3_backend" {
-  source      = "./modules/s3-backend"
-  bucket_name = var.bucket_name
-  table_name  = var.table_name
+  source        = "./modules/s3-backend"
+  bucket_name   = var.bucket_name
+  table_name    = var.table_name
+  force_destroy = var.backend_force_destroy
 }
 
 # VPC network (public + private subnets)
