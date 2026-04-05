@@ -12,3 +12,5 @@ terraform.rc
 
 # Keep the provider lock file in the repository
 !.terraform.lock.hcl
+
+.DS_Store
