@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: 165690630824.dkr.ecr.eu-central-1.amazonaws.com/lesson-7-ecr
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: LoadBalancer
@@ -15,7 +15,7 @@ configMap:
   data:
     DEBUG: "False"
     ALLOWED_HOSTS: "*"
-    DJANGO_SETTINGS_MODULE: "app.settings"
+    DJANGO_SETTINGS_MODULE: "config.settings"
     PORT: "8000"
 
 resources:

@@ -75,13 +75,13 @@ variable "node_group_name" {
 variable "node_desired_size" {
   description = "Desired number of EKS worker nodes"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "node_min_size" {
   description = "Minimum number of EKS worker nodes"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "node_max_size" {
