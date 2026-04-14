@@ -29,6 +29,7 @@ module "vpc" {
   private_subnets    = var.private_subnets
   availability_zones = var.availability_zones
   vpc_name           = var.vpc_name
+  cluster_name       = var.cluster_name
 }
 
 # ECR repo for Docker images
@@ -36,4 +37,17 @@ module "ecr" {
   source       = "./modules/ecr"
   ecr_name     = var.ecr_name
   scan_on_push = var.scan_on_push
+}
+
+# EKS cluster for the Django application
+module "eks" {
+  source          = "./modules/eks"
+  cluster_name    = var.cluster_name
+  cluster_version = var.cluster_version
+  subnet_ids      = module.vpc.private_subnet_ids
+  node_group_name = var.node_group_name
+  desired_size    = var.node_desired_size
+  min_size        = var.node_min_size
+  max_size        = var.node_max_size
+  instance_types  = var.node_instance_types
 }

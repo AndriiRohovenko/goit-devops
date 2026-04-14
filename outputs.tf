@@ -27,3 +27,23 @@ output "ecr_repository_url" {
   description = "ECR repository URL (where to push images)"
   value       = module.ecr.repository_url
 }
+
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS cluster API endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "eks_cluster_security_group_id" {
+  description = "EKS control plane security group id"
+  value       = module.eks.cluster_security_group_id
+}
+
+output "eks_node_group_name" {
+  description = "Managed node group name"
+  value       = module.eks.node_group_name
+}

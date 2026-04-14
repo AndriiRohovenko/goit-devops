@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configMap.name }}
+data:
+  DEBUG: {{ .Values.configMap.data.DEBUG | quote }}
+  ALLOWED_HOSTS: {{ .Values.configMap.data.ALLOWED_HOSTS | quote }}
+  DJANGO_SETTINGS_MODULE: {{ .Values.configMap.data.DJANGO_SETTINGS_MODULE | quote }}
+  PORT: {{ .Values.configMap.data.PORT | quote }}

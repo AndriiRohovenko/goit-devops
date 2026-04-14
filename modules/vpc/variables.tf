@@ -23,6 +23,12 @@ variable "vpc_name" {
   type        = string
 }
 
+variable "cluster_name" {
+  description = "Optional EKS cluster name used to tag subnets for Kubernetes load balancers"
+  type        = string
+  default     = null
+}
+
 variable "enable_dns_hostnames" {
   description = "Enable DNS hostnames (usually keep true)"
   type        = bool

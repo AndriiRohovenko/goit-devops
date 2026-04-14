@@ -1,169 +1,183 @@
-# Lesson 5 — Terraform (AWS)
+# Lesson 7 — Terraform, EKS, ECR, Helm
 
-Що саме створюється:
+This project provisions AWS infrastructure for a Django application and prepares a Helm chart for deployment into EKS.
 
-- **S3** — щоб зберігати файл стану Terraform (`terraform.tfstate`) у безпечному місці
-- **DynamoDB** — щоб Terraform “блокував” стан (щоб двоє людей не запускали `apply` одночасно)
-- **VPC** — мережа + 3 публічні та 3 приватні підмережі + Internet Gateway + NAT Gateway + маршрути
-- **ECR** — репозиторій для Docker-образів
+## What Terraform creates
 
+- S3 bucket for remote Terraform state
+- DynamoDB table for Terraform state locking
+- VPC with 3 public and 3 private subnets
+- ECR repository for the Django Docker image
+- EKS cluster with a managed node group
 
-## Структура
+## Project structure
 
-```
-lesson-5/
+```text
+lesson-7/
 ├── main.tf
+├── backend.tf
 ├── variables.tf
 ├── terraform.tfvars
-├── backend.tf
 ├── outputs.tf
 ├── modules/
 │   ├── s3-backend/
 │   ├── vpc/
-│   └── ecr/
+│   ├── ecr/
+│   └── eks/
+├── charts/
+│   └── django-app/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+│           ├── deployment.yaml
+│           ├── service.yaml
+│           ├── configmap.yaml
+│           └── hpa.yaml
 └── README.md
 ```
 
-## Перед стартом
+## Prerequisites
 
-1. Встановіть Terraform і перевірте:
+Install and configure these tools locally:
 
 ```bash
 terraform version
+aws --version
+kubectl version --client
+helm version
+docker --version
 ```
 
-2. Налаштуйте доступ до AWS (через AWS CLI), щоб Terraform міг створювати ресурси.
+You also need valid AWS credentials with permissions for S3, DynamoDB, VPC, ECR, EKS, EC2, and IAM.
 
-3. Перевірте регіон у [terraform.tfvars](lesson-5/terraform.tfvars): поле `aws_region` використовується для AWS provider. Для цього проєкту бекенд у [backend.tf](lesson-5/backend.tf) має бути в тому самому регіоні, але Terraform backend не читає звичайні `var.*` змінні.
+## Step 1 — Bootstrap the remote backend
 
-4. У [terraform.tfvars](lesson-5/terraform.tfvars) поле `backend_force_destroy = true` дозволяє в кінці видалити backend bucket разом з файлами state, але тільки після перемикання Terraform назад на local state.
+If the S3 bucket for remote state does not exist yet, create it once using local state.
 
-## Перший запуск (важливо)
-
-Є нюанс: Terraform не зможе підключити S3-бекенд, якщо S3 bucket і DynamoDB table ще не існують.
-Тому перший запуск робиться у 2 кроки.
-
-Перейдіть в папку проєкту:
-
-```bash
-cd lesson-5
-```
-
-### Крок 1 — створити S3 + DynamoDB (локально)
-
-Тимчасово вимкніть backend у [backend.tf](lesson-5/backend.tf) - закоментуйте весь блок `terraform { backend "s3" { ... } }`.
-
-Після цього ініціалізуйте local state:
+Temporarily comment out the full backend block in `backend.tf` with `/* ... */`, then run:
 
 ```bash
 rm -rf .terraform
 terraform init
-```
-
-Створюємо тільки бекенд-ресурси:
-
-```bash
 terraform apply -target=module.s3_backend
 ```
 
-### Крок 2 — підключити S3 бекенд і перенести стан
-
-Розкоментуйте backend-блок у [backend.tf](lesson-5/backend.tf).
-
-Перевірте, що в [backend.tf] значення `bucket` і `dynamodb_table` такі самі, як у [terraform.tfvars](terraform.tfvars) (поля `bucket_name` і `table_name`).
-
-Підключаємо бекенд і переносимо стан:
+After the S3 bucket and DynamoDB table exist, uncomment `backend.tf` and migrate the local state into S3:
 
 ```bash
 terraform init -migrate-state
 ```
 
-Після цього можна запускати все:
+## Step 2 — Create the infrastructure
+
+Review the values in `terraform.tfvars`, then run:
 
 ```bash
+terraform fmt -recursive
+terraform validate
 terraform plan
 terraform apply
 ```
 
-## Як коректно видалити все
-
-Не видаляйте backend bucket, поки Terraform ще використовує S3 backend. Спочатку знищіть звичайні ресурси, потім перемкніться на local state і тільки після цього видаляйте backend.
-
-### Крок 1 — знищити VPC та ECR, залишивши backend живим
+Useful outputs after apply:
 
 ```bash
-terraform destroy -target=module.vpc -target=module.ecr
+terraform output
 ```
 
-### Крок 2 — переключити Terraform на local state
+Expected important outputs:
 
-Збережіть поточний remote state локально:
+- ECR repository URL
+- EKS cluster name
+- EKS endpoint
+- VPC and subnet IDs
+
+## Step 3 — Configure kubectl for EKS
+
+Update kubeconfig to point to the new cluster:
 
 ```bash
-terraform state pull > terraform.tfstate
+aws eks update-kubeconfig --region eu-central-1 --name lesson-7-eks
+kubectl get nodes
 ```
 
-Потім закоментуйте backend-блок у [backend.tf](lesson-5/backend.tf) і переведіть Terraform на local state:
+If nodes are listed, the cluster is ready.
+
+## Step 4 — Build and push the Django image to ECR
+
+This repository currently contains only infrastructure code. Run the following commands from the Django application repository that contains the `Dockerfile`.
+
+Authenticate Docker to ECR:
 
 ```bash
-rm -rf .terraform
-terraform init -reconfigure
+aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 165690630824.dkr.ecr.eu-central-1.amazonaws.com
 ```
 
-### Крок 3 — видалити backend-ресурси
+Build, tag, and push the image:
 
 ```bash
-terraform destroy -target=module.s3_backend
+docker build -t django-app .
+docker tag django-app:latest 165690630824.dkr.ecr.eu-central-1.amazonaws.com/lesson-7-ecr:latest
+docker push 165690630824.dkr.ecr.eu-central-1.amazonaws.com/lesson-7-ecr:latest
 ```
 
-Після цього можна прибрати локальні тимчасові файли state:
+If your Django app uses a different repository name or tag, update `charts/django-app/values.yaml`.
+
+## Step 5 — Review the Helm chart
+
+The chart in `charts/django-app` includes:
+
+- Deployment using the ECR image
+- Service of type `LoadBalancer`
+- ConfigMap injected through `envFrom`
+- HPA scaling from 2 to 6 replicas at 70% CPU
+
+Default chart values are in `charts/django-app/values.yaml`.
+
+Important note: only non-secret environment variables should stay in `ConfigMap`. If you have passwords or tokens from the Django project, move them into a Kubernetes `Secret`.
+
+## Step 6 — Deploy with Helm
+
+Install the chart:
 
 ```bash
-rm -f terraform.tfstate terraform.tfstate.backup
+helm install django-app ./charts/django-app
 ```
 
-## Основні команди
-
-У каталозі `lesson-5`:
+Upgrade after edits:
 
 ```bash
-terraform init
-terraform plan
-terraform apply
+helm upgrade --install django-app ./charts/django-app
+```
+
+Check the deployment:
+
+```bash
+kubectl get pods
+kubectl get svc
+kubectl get hpa
+```
+
+## Step 7 — Verify external access
+
+Once the `LoadBalancer` service receives an external address, open it in a browser or test with curl.
+
+```bash
+kubectl get svc django-app
+```
+
+## Cleanup
+
+To remove the application from Kubernetes:
+
+```bash
+helm uninstall django-app
+```
+
+To remove AWS infrastructure:
+
+```bash
 terraform destroy
 ```
 
-## Що робить кожен модуль
-
-### modules/s3-backend
-
-- Створює S3 bucket для `terraform.tfstate`
-- Вмикає версіонування (щоб була історія змін стейту)
-- Вмикає шифрування
-- Створює DynamoDB таблицю для “lock”
-
-### modules/vpc
-
-- Створює VPC (мережу)
-- Створює 3 public subnet і 3 private subnet
-- Додає Internet Gateway для public subnet
-- Додає NAT Gateway, щоб private subnet мали вихід в інтернет
-- Налаштовує маршрути
-
-### modules/ecr
-
-- Створює ECR репозиторій
-- (Опціонально) вмикає сканування образів при пуші (`scan_on_push`)
-- Додає базову політику доступу до репозиторію
-
-## Важливо про імена
-
-- Назва S3 bucket має бути **унікальною в усьому AWS**. Якщо Terraform каже, що bucket вже існує — змініть `bucket_name` в [terraform.tfvars](terraform.tfvars) та значення `bucket` в [backend.tf](backend.tf).
-
-## Після перевірки (щоб не було витрат)
-
-```bash
-terraform destroy
-```
-
-Якщо знищите S3/DynamoDB, то наступного разу знову робіть “Перший запуск (2 кроки)”.
+If you also want to remove the remote backend, first migrate state back to local state, then destroy `module.s3_backend` separately.
