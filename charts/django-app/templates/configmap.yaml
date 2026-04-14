@@ -5,5 +5,11 @@ metadata:
 data:
   DEBUG: {{ .Values.configMap.data.DEBUG | quote }}
   ALLOWED_HOSTS: {{ .Values.configMap.data.ALLOWED_HOSTS | quote }}
+  SECRET_KEY: {{ .Values.configMap.data.SECRET_KEY | quote }}
   DJANGO_SETTINGS_MODULE: {{ .Values.configMap.data.DJANGO_SETTINGS_MODULE | quote }}
   PORT: {{ .Values.configMap.data.PORT | quote }}
+  POSTGRES_DB: {{ .Values.configMap.data.POSTGRES_DB | quote }}
+  POSTGRES_USER: {{ .Values.configMap.data.POSTGRES_USER | quote }}
+  POSTGRES_PASSWORD: {{ .Values.configMap.data.POSTGRES_PASSWORD | quote }}
+  POSTGRES_HOST: {{ .Values.configMap.data.POSTGRES_HOST | quote }}
+  POSTGRES_PORT: {{ .Values.configMap.data.POSTGRES_PORT | quote }}
