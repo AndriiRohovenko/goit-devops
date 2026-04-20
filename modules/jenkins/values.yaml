@@ -1,0 +1,43 @@
+controller:
+  serviceType: ${service_type}
+  numExecutors: 0
+  admin:
+    username: ${admin_user}
+    password: ${admin_password}
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - github
+    - configuration-as-code
+    - credentials
+    - plain-credentials
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      welcome-message: |
+        jenkins:
+          systemMessage: |
+            Managed by Terraform.
+            App repository: ${app_repo_url}
+            GitOps repository: ${gitops_repo_url}
+            GitOps branch: ${gitops_repo_branch}
+            Create Jenkins credentials after install:
+            - github-token (Secret text)
+            - aws-access-key-id (Secret text)
+            - aws-secret-access-key (Secret text)
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+persistence:
+  enabled: ${persistence_enabled}
+serviceAccount:
+  create: true
+rbac:
+  create: true
+agent:
+  enabled: false

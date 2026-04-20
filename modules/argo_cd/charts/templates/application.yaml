@@ -1,0 +1,22 @@
+{{- if .Values.application.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.application.name }}
+  namespace: {{ .Values.application.namespace }}
+spec:
+  project: {{ .Values.application.project }}
+  source:
+    repoURL: {{ .Values.application.repoURL }}
+    targetRevision: {{ .Values.application.targetRevision }}
+    path: {{ .Values.application.path }}
+  destination:
+    server: {{ .Values.application.destinationServer }}
+    namespace: {{ .Values.application.destinationNamespace }}
+  syncPolicy:
+    automated:
+      prune: {{ .Values.application.autoSync }}
+      selfHeal: {{ .Values.application.autoSync }}
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}

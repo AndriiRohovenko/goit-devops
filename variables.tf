@@ -95,3 +95,110 @@ variable "node_instance_types" {
   type        = list(string)
   default     = ["t3.micro"]
 }
+
+variable "app_repo_url" {
+  description = "Git URL of the Django application repository that Jenkins builds"
+  type        = string
+}
+
+variable "gitops_repo_url" {
+  description = "Git URL of the GitOps repository watched by Argo CD"
+  type        = string
+}
+
+variable "gitops_repo_branch" {
+  description = "Git branch that Jenkins updates in the GitOps repository"
+  type        = string
+  default     = "main"
+}
+
+variable "gitops_chart_path" {
+  description = "Path to the Django Helm chart inside the GitOps repository"
+  type        = string
+  default     = "charts/django-app"
+}
+
+variable "jenkins_namespace" {
+  description = "Namespace for Jenkins"
+  type        = string
+  default     = "jenkins"
+}
+
+variable "jenkins_chart_version" {
+  description = "Optional Jenkins chart version"
+  type        = string
+  default     = null
+}
+
+variable "jenkins_admin_user" {
+  description = "Jenkins admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "jenkins_admin_password" {
+  description = "Jenkins admin password"
+  type        = string
+  sensitive   = true
+}
+
+variable "jenkins_service_type" {
+  description = "Kubernetes service type for Jenkins"
+  type        = string
+  default     = "LoadBalancer"
+}
+
+variable "jenkins_persistence_enabled" {
+  description = "Whether Jenkins should use a persistent volume"
+  type        = bool
+  default     = false
+}
+
+variable "argo_cd_namespace" {
+  description = "Namespace for Argo CD"
+  type        = string
+  default     = "argocd"
+}
+
+variable "argo_cd_chart_version" {
+  description = "Optional Argo CD chart version"
+  type        = string
+  default     = null
+}
+
+variable "argo_cd_service_type" {
+  description = "Kubernetes service type for Argo CD server"
+  type        = string
+  default     = "LoadBalancer"
+}
+
+variable "argo_cd_application_name" {
+  description = "Name of the Argo CD Application resource"
+  type        = string
+  default     = "django-app"
+}
+
+variable "argo_cd_destination_namespace" {
+  description = "Target namespace where Argo CD deploys the application"
+  type        = string
+  default     = "default"
+}
+
+variable "gitops_repo_is_private" {
+  description = "Whether the GitOps repo is private and needs credentials in Argo CD"
+  type        = bool
+  default     = false
+}
+
+variable "gitops_repo_username" {
+  description = "Optional Git username for private GitOps repository access"
+  type        = string
+  default     = null
+}
+
+variable "gitops_repo_password" {
+  description = "Optional Git password or token for private GitOps repository access"
+  type        = string
+  default     = null
+  sensitive   = true
+}

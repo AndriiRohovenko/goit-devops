@@ -1,44 +1,46 @@
-# Lesson 7 — Terraform, EKS, ECR, Helm
+# Lesson 8-9
 
-This project provisions AWS infrastructure for a Django application and prepares a Helm chart for deployment into EKS.
+This repository is for infrastructure only.
 
-## What Terraform creates
+It creates AWS resources and installs Jenkins and Argo CD into EKS.
 
-- S3 bucket for remote Terraform state
-- DynamoDB table for Terraform state locking
-- VPC with 3 public and 3 private subnets
-- ECR repository for the Django Docker image
-- EKS cluster with a managed node group
+## What This Project Does
 
-## Project structure
+This project creates:
 
-```text
-lesson-7/
-├── main.tf
-├── backend.tf
-├── variables.tf
-├── terraform.tfvars
-├── outputs.tf
-├── modules/
-│   ├── s3-backend/
-│   ├── vpc/
-│   ├── ecr/
-│   └── eks/
-├── charts/
-│   └── django-app/
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── deployment.yaml
-│           ├── service.yaml
-│           ├── configmap.yaml
-│           └── hpa.yaml
-└── README.md
-```
+- S3 bucket for Terraform state
+- DynamoDB table for Terraform lock
+- VPC and subnets
+- ECR repository
+- EKS cluster
+- Jenkins in Kubernetes
+- Argo CD in Kubernetes
 
-## Prerequisites
+## Repositories
 
-Install and configure these tools locally:
+There are 3 repositories in this homework:
+
+- `goit-devops` -> Terraform infrastructure
+- `django-app` -> Django code, Dockerfile, Jenkinsfile
+- `django-gitops` -> Helm chart for deployment
+
+Important:
+
+- this repo does not store the Django Helm chart
+- the chart is stored in `django-gitops`
+- Argo CD watches `charts/django-app` in `django-gitops`
+
+## How The Flow Works
+
+1. Terraform creates infrastructure.
+2. Jenkins builds Docker image from `django-app`.
+3. Jenkins pushes image to ECR.
+4. Jenkins updates image tag in `django-gitops`.
+5. Argo CD sees the change and deploys the app.
+
+## Before You Start
+
+You need these tools:
 
 ```bash
 terraform version
@@ -48,13 +50,25 @@ helm version
 docker --version
 ```
 
-You also need valid AWS credentials with permissions for S3, DynamoDB, VPC, ECR, EKS, EC2, and IAM.
+You also need AWS credentials with access to EKS, ECR, VPC, S3, DynamoDB, EC2, and IAM.
 
-## Step 1 — Bootstrap the remote backend
+## My Main Settings
 
-If the S3 bucket for remote state does not exist yet, create it once using local state.
+This project currently uses:
 
-Temporarily comment out the full backend block in `backend.tf` with `/* ... */`, then run:
+- region: `eu-central-1`
+- EKS cluster name: `lesson-7-eks`
+- ECR repository: `lesson-7-ecr`
+- node count: `5`
+- node type: `t3.small`
+- Jenkins namespace: `jenkins`
+- Argo CD namespace: `argocd`
+
+## Step 1 — Create Backend For Terraform State
+
+If S3 backend does not exist yet, create it first.
+
+Temporarily disable the backend block in `backend.tf`, then run:
 
 ```bash
 rm -rf .terraform
@@ -62,15 +76,15 @@ terraform init
 terraform apply -target=module.s3_backend
 ```
 
-After the S3 bucket and DynamoDB table exist, uncomment `backend.tf` and migrate the local state into S3:
+Then enable the backend again and run:
 
 ```bash
 terraform init -migrate-state
 ```
 
-## Step 2 — Create the infrastructure
+## Step 2 — Create Infrastructure
 
-Review the values in `terraform.tfvars`, then run:
+Run these commands:
 
 ```bash
 terraform fmt -recursive
@@ -79,105 +93,133 @@ terraform plan
 terraform apply
 ```
 
-Useful outputs after apply:
+See outputs:
 
 ```bash
 terraform output
 ```
 
-Expected important outputs:
-
-- ECR repository URL
-- EKS cluster name
-- EKS endpoint
-- VPC and subnet IDs
-
-## Step 3 — Configure kubectl for EKS
-
-Update kubeconfig to point to the new cluster:
+## Step 3 — Connect kubectl To EKS
 
 ```bash
 aws eks update-kubeconfig --region eu-central-1 --name lesson-7-eks
 kubectl get nodes
 ```
 
-If nodes are listed, the cluster is ready.
+If nodes are shown, cluster is ready.
 
-## Step 4 — Build and push the Django image to ECR
+## Step 4 — Open Jenkins And Argo CD
 
-This repository currently contains only infrastructure code. Run the following commands from the Django application repository that contains the `Dockerfile`.
-
-Authenticate Docker to ECR:
+Get Jenkins URL:
 
 ```bash
-aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 165690630824.dkr.ecr.eu-central-1.amazonaws.com
+terraform output jenkins_url
 ```
 
-Build, tag, and push the image:
+Get Argo CD URL:
 
 ```bash
-docker build -t django-app .
-docker tag django-app:latest 165690630824.dkr.ecr.eu-central-1.amazonaws.com/lesson-7-ecr:latest
-docker push 165690630824.dkr.ecr.eu-central-1.amazonaws.com/lesson-7-ecr:latest
+terraform output argocd_server_url
 ```
 
-If your Django app uses a different repository name or tag, update `charts/django-app/values.yaml`.
-
-## Step 5 — Review the Helm chart
-
-The chart in `charts/django-app` includes:
-
-- Deployment using the ECR image
-- Service of type `LoadBalancer`
-- ConfigMap injected through `envFrom`
-- HPA scaling from 2 to 6 replicas at 70% CPU
-
-Default chart values are in `charts/django-app/values.yaml`.
-
-Important note: only non-secret environment variables should stay in `ConfigMap`. If you have passwords or tokens from the Django project, move them into a Kubernetes `Secret`.
-
-## Step 6 — Deploy with Helm
-
-Install the chart:
+Get Argo CD admin password:
 
 ```bash
-helm install django-app ./charts/django-app
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 ```
 
-Upgrade after edits:
+Login to Argo CD with:
 
-```bash
-helm upgrade --install django-app ./charts/django-app
+- username: `admin`
+- password: secret from command above
+
+## Step 5 — Add Credentials In Jenkins
+
+Create these credentials in Jenkins.
+
+### GitHub token
+
+- Type: `Secret text`
+- ID: `github-token`
+
+This token should allow push access to `django-gitops`.
+
+### AWS credentials
+
+Create an IAM user for Jenkins and store these in Jenkins:
+
+- `aws-access-key-id`
+- `aws-secret-access-key`
+
+Both should be `Secret text`.
+
+For homework, ECR push permission is enough.
+
+## Step 6 — Create Jenkins Pipeline Job
+
+In Jenkins create a Pipeline job:
+
+1. New Item
+2. Name: `django-app-pipeline`
+3. Type: `Pipeline`
+4. Choose `Pipeline script from SCM`
+5. Git repo: `https://github.com/AndriiRohovenko/django-app.git`
+6. Branch: `*/main`
+7. Script path: `Jenkinsfile`
+
+## Step 7 — Check GitOps Repo
+
+The `django-gitops` repository must contain:
+
+```text
+charts/
+└── django-app/
+	├── Chart.yaml
+	├── values.yaml
+	└── templates/
 ```
 
-Check the deployment:
+Argo CD uses:
+
+- repo: `django-gitops`
+- branch: `main`
+- path: `charts/django-app`
+
+## Step 8 — Run First Deployment
+
+Push a new commit to `django-app`.
+
+Then this should happen:
+
+1. Jenkins builds image
+2. Jenkins pushes image to ECR
+3. Jenkins updates `django-gitops`
+4. Argo CD deploys the app
+
+Useful commands:
 
 ```bash
-kubectl get pods
-kubectl get svc
-kubectl get hpa
+aws ecr describe-images --repository-name lesson-7-ecr --region eu-central-1 --output json
+kubectl get applications -n argocd
+kubectl get pods -n default
+kubectl get svc -A
 ```
 
-## Step 7 — Verify external access
-
-Once the `LoadBalancer` service receives an external address, open it in a browser or test with curl.
+## Useful Check Commands
 
 ```bash
-kubectl get svc django-app
+terraform output
+kubectl get nodes
+kubectl get pods -A
+kubectl get svc -A
+kubectl get applications -n argocd
+helm list -A
 ```
 
 ## Cleanup
 
-To remove the application from Kubernetes:
-
-```bash
-helm uninstall django-app
-```
-
-To remove AWS infrastructure:
+To remove everything:
 
 ```bash
 terraform destroy
 ```
-
-If you also want to remove the remote backend, first migrate state back to local state, then destroy `module.s3_backend` separately.

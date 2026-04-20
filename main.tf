@@ -6,11 +6,43 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 5.0"
     }
+
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.27"
+    }
+
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.13"
+    }
   }
 }
 
 provider "aws" {
   region = var.aws_region
+}
+
+data "aws_eks_cluster" "this" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "this" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
 }
 
 # S3 + DynamoDB for Terraform state (remote backend)
@@ -50,4 +82,44 @@ module "eks" {
   min_size        = var.node_min_size
   max_size        = var.node_max_size
   instance_types  = var.node_instance_types
+}
+
+module "jenkins" {
+  source              = "./modules/jenkins"
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+  namespace           = var.jenkins_namespace
+  chart_version       = var.jenkins_chart_version
+  admin_user          = var.jenkins_admin_user
+  admin_password      = var.jenkins_admin_password
+  service_type        = var.jenkins_service_type
+  persistence_enabled = var.jenkins_persistence_enabled
+  app_repo_url        = var.app_repo_url
+  gitops_repo_url     = var.gitops_repo_url
+  gitops_repo_branch  = var.gitops_repo_branch
+
+  depends_on = [module.eks]
+}
+
+module "argo_cd" {
+  source                = "./modules/argo_cd"
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+  namespace             = var.argo_cd_namespace
+  chart_version         = var.argo_cd_chart_version
+  service_type          = var.argo_cd_service_type
+  gitops_repo_url       = var.gitops_repo_url
+  gitops_repo_branch    = var.gitops_repo_branch
+  gitops_chart_path     = var.gitops_chart_path
+  application_name      = var.argo_cd_application_name
+  destination_namespace = var.argo_cd_destination_namespace
+  repo_is_private       = var.gitops_repo_is_private
+  repo_username         = var.gitops_repo_username
+  repo_password         = var.gitops_repo_password
+
+  depends_on = [module.eks]
 }

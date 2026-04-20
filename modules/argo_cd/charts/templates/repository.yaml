@@ -1,0 +1,15 @@
+{{- if .Values.repository.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitops-repo-credentials
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  type: git
+  url: {{ .Values.repository.url }}
+  username: {{ .Values.repository.username }}
+  password: {{ .Values.repository.password }}
+{{- end }}

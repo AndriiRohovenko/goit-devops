@@ -1,0 +1,5 @@
+server:
+  service:
+    type: ${service_type}
+  extraArgs:
+    - --insecure

@@ -1,0 +1,17 @@
+application:
+  enabled: true
+  name: ${application_name}
+  namespace: argocd
+  project: default
+  repoURL: ${gitops_repo_url}
+  targetRevision: ${gitops_repo_branch}
+  path: ${gitops_chart_path}
+  destinationServer: https://kubernetes.default.svc
+  destinationNamespace: ${destination_namespace}
+  autoSync: true
+
+repository:
+  enabled: ${repo_enabled}
+  url: ${gitops_repo_url}
+  username: ${repo_username}
+  password: ${repo_password}
