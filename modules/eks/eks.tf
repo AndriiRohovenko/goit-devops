@@ -46,6 +46,17 @@ resource "aws_eks_cluster" "this" {
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
 }
 
+resource "aws_security_group_rule" "nodeport_from_vpc" {
+  type              = "ingress"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr_block]
+  security_group_id = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+
+  description = "Allow VPC traffic to Kubernetes NodePort services"
+}
+
 resource "aws_iam_role" "node_group" {
   name               = "${var.cluster_name}-node-group-role"
   assume_role_policy = data.aws_iam_policy_document.node_assume_role.json

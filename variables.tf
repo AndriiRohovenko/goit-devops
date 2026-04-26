@@ -202,3 +202,145 @@ variable "gitops_repo_password" {
   default     = null
   sensitive   = true
 }
+
+variable "enable_k8s_addons" {
+  description = "If true, install Jenkins and Argo CD into the EKS cluster after the cluster already exists"
+  type        = bool
+  default     = false
+}
+
+variable "environment" {
+  description = "Environment tag applied to shared resources"
+  type        = string
+  default     = "dev"
+}
+
+variable "project_name" {
+  description = "Project tag applied to shared resources"
+  type        = string
+  default     = "django-app"
+}
+
+variable "db_name_prefix" {
+  description = "Identifier prefix for the RDS instance or Aurora cluster"
+  type        = string
+  default     = "django-db"
+}
+
+variable "db_use_aurora" {
+  description = "If true, create an Aurora cluster instead of a standard RDS instance"
+  type        = bool
+  default     = false
+}
+
+variable "db_engine" {
+  description = "Engine for a standard RDS instance"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_engine_version" {
+  description = "Engine version for a standard RDS instance"
+  type        = string
+  default     = "17.2"
+}
+
+variable "db_parameter_group_family_rds" {
+  description = "Parameter group family for a standard RDS instance"
+  type        = string
+  default     = "postgres17"
+}
+
+variable "db_engine_cluster" {
+  description = "Engine for Aurora clusters"
+  type        = string
+  default     = "aurora-postgresql"
+}
+
+variable "db_engine_version_cluster" {
+  description = "Engine version for Aurora clusters"
+  type        = string
+  default     = "15.3"
+}
+
+variable "db_parameter_group_family_aurora" {
+  description = "Parameter group family for Aurora clusters"
+  type        = string
+  default     = "aurora-postgresql15"
+}
+
+variable "db_aurora_instance_count" {
+  description = "Total number of Aurora instances including the writer"
+  type        = number
+  default     = 2
+}
+
+variable "db_instance_class" {
+  description = "Instance class for RDS or Aurora instances"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Allocated storage in GB for a standard RDS instance"
+  type        = number
+  default     = 20
+}
+
+variable "db_database_name" {
+  description = "Initial database name"
+  type        = string
+  default     = "app"
+}
+
+variable "db_username" {
+  description = "Master username for the database"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_password" {
+  description = "Master password for the database"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_publicly_accessible" {
+  description = "Whether the database should be placed in public subnets and exposed publicly"
+  type        = bool
+  default     = false
+}
+
+variable "db_multi_az" {
+  description = "Whether to enable Multi-AZ for a standard RDS instance"
+  type        = bool
+  default     = false
+}
+
+variable "db_backup_retention_period" {
+  description = "Number of days to keep automated backups"
+  type        = number
+  default     = 0
+}
+
+variable "db_skip_final_snapshot" {
+  description = "Whether Terraform should skip a final snapshot during destroy"
+  type        = bool
+  default     = true
+}
+
+variable "db_allowed_cidr_blocks" {
+  description = "CIDR blocks allowed to connect to the database port"
+  type        = list(string)
+  default     = []
+}
+
+variable "db_parameters" {
+  description = "Database parameters applied to the RDS or Aurora parameter group"
+  type        = map(string)
+  default = {
+    max_connections = "200"
+    log_statement   = "ddl"
+    work_mem        = "4096"
+  }
+}

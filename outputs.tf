@@ -48,33 +48,48 @@ output "eks_node_group_name" {
   value       = module.eks.node_group_name
 }
 
+output "db_endpoint" {
+  description = "Primary database endpoint"
+  value       = module.rds.endpoint
+}
+
+output "db_reader_endpoint" {
+  description = "Aurora reader endpoint when Aurora is enabled"
+  value       = module.rds.reader_endpoint
+}
+
+output "db_security_group_id" {
+  description = "Security group attached to the database"
+  value       = module.rds.security_group_id
+}
+
 output "jenkins_namespace" {
   description = "Namespace where Jenkins is installed"
-  value       = module.jenkins.namespace
+  value       = var.enable_k8s_addons ? module.jenkins[0].namespace : null
 }
 
 output "jenkins_url" {
   description = "Jenkins load balancer URL, if assigned"
-  value       = module.jenkins.url
+  value       = var.enable_k8s_addons ? module.jenkins[0].url : null
 }
 
 output "jenkins_admin_user" {
   description = "Jenkins admin user"
-  value       = module.jenkins.admin_user
+  value       = var.enable_k8s_addons ? module.jenkins[0].admin_user : null
 }
 
 output "argocd_namespace" {
   description = "Namespace where Argo CD is installed"
-  value       = module.argo_cd.namespace
+  value       = var.enable_k8s_addons ? module.argo_cd[0].namespace : null
 }
 
 output "argocd_server_url" {
   description = "Argo CD load balancer URL, if assigned"
-  value       = module.argo_cd.server_url
+  value       = var.enable_k8s_addons ? module.argo_cd[0].server_url : null
 }
 
 output "argocd_admin_password" {
   description = "Initial Argo CD admin password"
-  value       = module.argo_cd.admin_password
+  value       = var.enable_k8s_addons ? module.argo_cd[0].admin_password : null
   sensitive   = true
 }

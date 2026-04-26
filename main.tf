@@ -24,24 +24,26 @@ provider "aws" {
 }
 
 data "aws_eks_cluster" "this" {
+  count = var.enable_k8s_addons ? 1 : 0
   name = module.eks.cluster_name
 }
 
 data "aws_eks_cluster_auth" "this" {
+  count = var.enable_k8s_addons ? 1 : 0
   name = module.eks.cluster_name
 }
 
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.this.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.this.token
+  host                   = var.enable_k8s_addons ? data.aws_eks_cluster.this[0].endpoint : "https://example.invalid"
+  cluster_ca_certificate = var.enable_k8s_addons ? base64decode(data.aws_eks_cluster.this[0].certificate_authority[0].data) : ""
+  token                  = var.enable_k8s_addons ? data.aws_eks_cluster_auth.this[0].token : ""
 }
 
 provider "helm" {
   kubernetes = {
-    host                   = data.aws_eks_cluster.this.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.this.token
+    host                   = var.enable_k8s_addons ? data.aws_eks_cluster.this[0].endpoint : "https://example.invalid"
+    cluster_ca_certificate = var.enable_k8s_addons ? base64decode(data.aws_eks_cluster.this[0].certificate_authority[0].data) : ""
+    token                  = var.enable_k8s_addons ? data.aws_eks_cluster_auth.this[0].token : ""
   }
 }
 
@@ -77,6 +79,7 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
   subnet_ids      = module.vpc.private_subnet_ids
+  vpc_cidr_block  = var.vpc_cidr_block
   node_group_name = var.node_group_name
   desired_size    = var.node_desired_size
   min_size        = var.node_min_size
@@ -84,8 +87,44 @@ module "eks" {
   instance_types  = var.node_instance_types
 }
 
+module "rds" {
+  source = "./modules/rds"
+
+  name                          = var.db_name_prefix
+  use_aurora                    = var.db_use_aurora
+  engine                        = var.db_engine
+  engine_version                = var.db_engine_version
+  parameter_group_family_rds    = var.db_parameter_group_family_rds
+  engine_cluster                = var.db_engine_cluster
+  engine_version_cluster        = var.db_engine_version_cluster
+  parameter_group_family_aurora = var.db_parameter_group_family_aurora
+  aurora_instance_count         = var.db_aurora_instance_count
+  instance_class                = var.db_instance_class
+  allocated_storage             = var.db_allocated_storage
+  db_name                       = var.db_database_name
+  username                      = var.db_username
+  password                      = var.db_password
+  subnet_private_ids            = module.vpc.private_subnet_ids
+  subnet_public_ids             = module.vpc.public_subnet_ids
+  publicly_accessible           = var.db_publicly_accessible
+  vpc_id                        = module.vpc.vpc_id
+  vpc_cidr_block                = var.vpc_cidr_block
+  multi_az                      = var.db_multi_az
+  backup_retention_period       = var.db_backup_retention_period
+  skip_final_snapshot           = var.db_skip_final_snapshot
+  allowed_cidr_blocks           = var.db_allowed_cidr_blocks
+  parameters                    = var.db_parameters
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+    ManagedBy   = "terraform"
+  }
+}
+
 module "jenkins" {
-  source              = "./modules/jenkins"
+  count  = var.enable_k8s_addons ? 1 : 0
+  source = "./modules/jenkins"
   providers = {
     kubernetes = kubernetes
     helm       = helm
@@ -104,7 +143,8 @@ module "jenkins" {
 }
 
 module "argo_cd" {
-  source                = "./modules/argo_cd"
+  count  = var.enable_k8s_addons ? 1 : 0
+  source = "./modules/argo_cd"
   providers = {
     kubernetes = kubernetes
     helm       = helm

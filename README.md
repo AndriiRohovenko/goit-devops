@@ -13,6 +13,7 @@ This project creates:
 - VPC and subnets
 - ECR repository
 - EKS cluster
+- RDS or Aurora database
 - Jenkins in Kubernetes
 - Argo CD in Kubernetes
 
@@ -93,13 +94,86 @@ terraform plan
 terraform apply
 ```
 
+For a fresh environment, keep `enable_k8s_addons = false` in `terraform.tfvars`.
+This creates AWS infrastructure first, including VPC, EKS, ECR, and RDS.
+
 See outputs:
 
 ```bash
 terraform output
 ```
 
-## Step 3 — Connect kubectl To EKS
+## Step 3 — Install Jenkins And Argo CD
+
+After EKS exists, enable the in-cluster add-ons:
+
+```hcl
+enable_k8s_addons = true
+```
+
+Then run:
+
+```bash
+terraform plan
+terraform apply
+```
+
+## Database Module
+
+This repo now includes a reusable module in `modules/rds`.
+
+It can create either:
+
+- a standard Amazon RDS instance for PostgreSQL or MySQL
+- or an Aurora cluster with one writer and optional readers
+
+Switching is controlled by `db_use_aurora` in `terraform.tfvars`.
+
+Example standard RDS settings:
+
+```hcl
+db_use_aurora                  = false
+db_engine                      = "postgres"
+db_engine_version              = "17.2"
+db_parameter_group_family_rds  = "postgres17"
+db_instance_class              = "db.t3.medium"
+db_allocated_storage           = 20
+db_database_name               = "app"
+db_username                    = "postgres"
+db_password                    = "ChangeMe123!"
+```
+
+Example Aurora settings:
+
+```hcl
+db_use_aurora                     = true
+db_engine_cluster                 = "aurora-postgresql"
+db_engine_version_cluster         = "15.3"
+db_parameter_group_family_aurora  = "aurora-postgresql15"
+db_aurora_instance_count          = 2
+db_instance_class                 = "db.t3.medium"
+db_database_name                  = "app"
+db_username                       = "postgres"
+db_password                       = "ChangeMe123!"
+```
+
+Useful outputs:
+
+- `terraform output db_endpoint`
+- `terraform output db_reader_endpoint`
+- `terraform output db_security_group_id`
+
+Example parameter group values:
+
+```hcl
+db_parameters = {
+	max_connections = "200"
+	log_statement   = "ddl"
+	work_mem        = "4096"
+}
+```
+
+## Step 4 — Connect kubectl To EKS
 
 ```bash
 aws eks update-kubeconfig --region eu-central-1 --name lesson-7-eks
@@ -108,7 +182,7 @@ kubectl get nodes
 
 If nodes are shown, cluster is ready.
 
-## Step 4 — Open Jenkins And Argo CD
+## Step 5 — Open Jenkins And Argo CD
 
 Get Jenkins URL:
 
@@ -133,7 +207,7 @@ Login to Argo CD with:
 - username: `admin`
 - password: secret from command above
 
-## Step 5 — Add Credentials In Jenkins
+## Step 6 — Add Credentials In Jenkins
 
 Create these credentials in Jenkins.
 
@@ -155,7 +229,7 @@ Both should be `Secret text`.
 
 For homework, ECR push permission is enough.
 
-## Step 6 — Create Jenkins Pipeline Job
+## Step 7 — Create Jenkins Pipeline Job
 
 In Jenkins create a Pipeline job:
 
@@ -167,7 +241,7 @@ In Jenkins create a Pipeline job:
 6. Branch: `*/main`
 7. Script path: `Jenkinsfile`
 
-## Step 7 — Check GitOps Repo
+## Step 8 — Check GitOps Repo
 
 The `django-gitops` repository must contain:
 
@@ -185,7 +259,7 @@ Argo CD uses:
 - branch: `main`
 - path: `charts/django-app`
 
-## Step 8 — Run First Deployment
+## Step 9 — Run First Deployment
 
 Push a new commit to `django-app`.
 

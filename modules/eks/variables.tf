@@ -37,3 +37,8 @@ variable "instance_types" {
   description = "EC2 instance types for worker nodes"
   type        = list(string)
 }
+
+variable "vpc_cidr_block" {
+  description = "VPC CIDR block allowed to reach NodePort services on worker nodes"
+  type        = string
+}

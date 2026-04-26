@@ -10,5 +10,5 @@ output "admin_user" {
 
 output "url" {
   description = "Jenkins load balancer URL when assigned"
-  value       = try("http://${data.kubernetes_service_v1.this.status[0].load_balancer[0].ingress[0].hostname}", null)
+  value       = try("http://${data.kubernetes_service_v1.this.status[0].load_balancer[0].ingress[0].hostname}:8080", null)
 }
