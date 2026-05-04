@@ -217,7 +217,6 @@ variable "grafana_admin_user" {
 variable "grafana_admin_password" {
   description = "Grafana admin password"
   type        = string
-  default     = "admin123"
   sensitive   = true
 }
 
@@ -357,7 +356,7 @@ variable "db_multi_az" {
 variable "db_backup_retention_period" {
   description = "Number of days to keep automated backups"
   type        = number
-  default     = 0
+  default     = 7
 }
 
 variable "db_skip_final_snapshot" {

@@ -87,6 +87,9 @@ terraform init -migrate-state
 
 ## Step 2 — Create Infrastructure
 
+Set sensitive values explicitly in `terraform.tfvars` before the first apply.
+At minimum, define `db_password`, `jenkins_admin_password`, and `grafana_admin_password` there.
+
 Run these commands:
 
 ```bash
@@ -153,6 +156,7 @@ db_allocated_storage           = 20
 db_database_name               = "app"
 db_username                    = "postgres"
 db_password                    = "ChangeMe123!"
+db_backup_retention_period     = 7
 ```
 
 Example Aurora settings:
@@ -167,6 +171,7 @@ db_instance_class                 = "db.t3.medium"
 db_database_name                  = "app"
 db_username                       = "postgres"
 db_password                       = "ChangeMe123!"
+db_backup_retention_period        = 7
 ```
 
 Useful outputs:
