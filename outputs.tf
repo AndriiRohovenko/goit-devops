@@ -93,3 +93,29 @@ output "argocd_admin_password" {
   value       = var.enable_k8s_addons ? module.argo_cd[0].admin_password : null
   sensitive   = true
 }
+
+output "monitoring_namespace" {
+  description = "Namespace where Prometheus and Grafana are installed"
+  value       = var.enable_k8s_addons && var.enable_monitoring ? module.monitoring[0].namespace : null
+}
+
+output "prometheus_service_name" {
+  description = "Prometheus service name"
+  value       = var.enable_k8s_addons && var.enable_monitoring ? module.monitoring[0].prometheus_service_name : null
+}
+
+output "grafana_service_name" {
+  description = "Grafana service name"
+  value       = var.enable_k8s_addons && var.enable_monitoring ? module.monitoring[0].grafana_service_name : null
+}
+
+output "grafana_admin_user" {
+  description = "Grafana admin user"
+  value       = var.enable_k8s_addons && var.enable_monitoring ? module.monitoring[0].grafana_admin_user : null
+}
+
+output "grafana_admin_password" {
+  description = "Grafana admin password"
+  value       = var.enable_k8s_addons && var.enable_monitoring ? module.monitoring[0].grafana_admin_password : null
+  sensitive   = true
+}

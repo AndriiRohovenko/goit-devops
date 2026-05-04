@@ -1,4 +1,4 @@
-# Lesson 8-9
+# Final DevOps Project
 
 This repository is for infrastructure only.
 
@@ -16,10 +16,12 @@ This project creates:
 - RDS or Aurora database
 - Jenkins in Kubernetes
 - Argo CD in Kubernetes
+- Prometheus in Kubernetes
+- Grafana in Kubernetes
 
 ## Repositories
 
-There are 3 repositories in this homework:
+There are 3 repositories in this final project:
 
 - `goit-devops` -> Terraform infrastructure
 - `django-app` -> Django code, Dockerfile, Jenkinsfile
@@ -118,6 +120,16 @@ terraform plan
 terraform apply
 ```
 
+With the current configuration, the second Terraform apply installs:
+
+- Jenkins
+- Argo CD
+- Prometheus
+- Grafana
+
+Monitoring is installed by Terraform from `modules/monitoring` through Helm releases.
+It is not installed manually.
+
 ## Database Module
 
 This repo now includes a reusable module in `modules/rds`.
@@ -207,6 +219,27 @@ Login to Argo CD with:
 - username: `admin`
 - password: secret from command above
 
+## Step 5.1 — Open Grafana
+
+Get Grafana admin password:
+
+```bash
+terraform output -raw grafana_admin_password
+```
+
+Open Grafana locally:
+
+```bash
+kubectl port-forward svc/grafana 3000:80 -n monitoring
+```
+
+Open `http://localhost:3000` and log in with:
+
+- username: `admin`
+- password: output from the command above
+
+Prometheus is already configured as the default Grafana data source by Terraform.
+
 ## Step 6 — Add Credentials In Jenkins
 
 Create these credentials in Jenkins.
@@ -227,7 +260,7 @@ Create an IAM user for Jenkins and store these in Jenkins:
 
 Both should be `Secret text`.
 
-For homework, ECR push permission is enough.
+For this project, ECR push permission is enough.
 
 ## Step 7 — Create Jenkins Pipeline Job
 
@@ -259,6 +292,22 @@ Argo CD uses:
 - branch: `main`
 - path: `charts/django-app`
 
+## Step 8.1 — Create The App Secret
+
+The current GitOps chart expects the Django application secret to exist in the cluster.
+This secret is created manually and is not managed by Terraform in this repository.
+
+Create it before testing the application deployment:
+
+```bash
+kubectl create secret generic django-app-secret \
+	-n default \
+	--from-literal=SECRET_KEY='django-secret-key-final-project' \
+	--from-literal=DB_USER='postgres' \
+	--from-literal=DB_PASSWORD='ChangeMe123!' \
+	--dry-run=client -o yaml | kubectl apply -f -
+```
+
 ## Step 9 — Run First Deployment
 
 Push a new commit to `django-app`.
@@ -279,6 +328,46 @@ kubectl get pods -n default
 kubectl get svc -A
 ```
 
+## Step 10 — Check Monitoring
+
+Check monitoring resources:
+
+```bash
+kubectl get all -n monitoring
+```
+
+Open Prometheus:
+
+```bash
+kubectl port-forward svc/prometheus-server 9090:80 -n monitoring
+```
+
+Open Grafana:
+
+```bash
+kubectl port-forward svc/grafana 3000:80 -n monitoring
+```
+
+In Grafana, verify the Prometheus data source and run a simple query such as:
+
+```promql
+up
+```
+
+For app usage visualization, example queries are:
+
+```promql
+sum by (pod) (
+	rate(container_cpu_usage_seconds_total{namespace="default", pod=~"django-app-.*", container!="POD", container!=""}[5m])
+)
+```
+
+```promql
+sum by (pod) (
+	container_memory_usage_bytes{namespace="default", pod=~"django-app-.*", container!="POD", container!=""}
+)
+```
+
 ## Useful Check Commands
 
 ```bash
@@ -292,8 +381,60 @@ helm list -A
 
 ## Cleanup
 
-To remove everything:
+Before destroying infrastructure, remove the GitOps-deployed Django application first.
+This project deploys the app through Argo CD, so the `default` namespace may still contain a `LoadBalancer` service even after Jenkins, Argo CD, or monitoring are removed.
+If that service stays alive, AWS keeps the external load balancer and Terraform cannot delete the VPC, subnets, or internet gateway.
+
+### Step 1 — Remove The Django Application
+
+Delete the Argo CD application:
 
 ```bash
-terraform destroy
+kubectl delete application django-app -n argocd
 ```
+
+Verify that app resources are gone:
+
+```bash
+kubectl get all -n default
+kubectl get svc -n default
+```
+
+If anything is still left in the `default` namespace, delete it manually:
+
+```bash
+kubectl delete svc django-app -n default --ignore-not-found
+kubectl delete deployment django-app -n default --ignore-not-found
+kubectl delete hpa django-app -n default --ignore-not-found
+kubectl delete configmap django-app-config -n default --ignore-not-found
+kubectl delete secret django-app-secret -n default --ignore-not-found
+```
+
+### Step 2 — Destroy Infrastructure But Keep The Terraform Backend
+
+To keep the S3 state bucket and DynamoDB lock table, do not run plain `terraform destroy`.
+Destroy only these modules:
+
+```bash
+terraform destroy \
+	-target=module.monitoring \
+	-target=module.argo_cd \
+	-target=module.jenkins \
+	-target=module.rds \
+	-target=module.eks \
+	-target=module.ecr \
+	-target=module.vpc
+```
+
+### Step 3 — Verify Only Backend Resources Remain
+
+After destroy completes, check Terraform state:
+
+```bash
+terraform state list
+```
+
+Expected result:
+
+- only backend resources remain
+- mostly resources under `module.s3_backend`

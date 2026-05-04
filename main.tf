@@ -25,12 +25,12 @@ provider "aws" {
 
 data "aws_eks_cluster" "this" {
   count = var.enable_k8s_addons ? 1 : 0
-  name = module.eks.cluster_name
+  name  = module.eks.cluster_name
 }
 
 data "aws_eks_cluster_auth" "this" {
   count = var.enable_k8s_addons ? 1 : 0
-  name = module.eks.cluster_name
+  name  = module.eks.cluster_name
 }
 
 provider "kubernetes" {
@@ -160,6 +160,22 @@ module "argo_cd" {
   repo_is_private       = var.gitops_repo_is_private
   repo_username         = var.gitops_repo_username
   repo_password         = var.gitops_repo_password
+
+  depends_on = [module.eks]
+}
+
+module "monitoring" {
+  count  = var.enable_k8s_addons && var.enable_monitoring ? 1 : 0
+  source = "./modules/monitoring"
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+  namespace                = var.monitoring_namespace
+  prometheus_chart_version = var.prometheus_chart_version
+  grafana_chart_version    = var.grafana_chart_version
+  grafana_admin_user       = var.grafana_admin_user
+  grafana_admin_password   = var.grafana_admin_password
 
   depends_on = [module.eks]
 }

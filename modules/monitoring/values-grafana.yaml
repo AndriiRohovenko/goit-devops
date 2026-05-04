@@ -1,0 +1,18 @@
+adminUser: ${admin_user}
+adminPassword: ${admin_password}
+
+service:
+  type: ClusterIP
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: ${prometheus_endpoint}
+        isDefault: true
+
+persistence:
+  enabled: false

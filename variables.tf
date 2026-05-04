@@ -184,6 +184,43 @@ variable "argo_cd_destination_namespace" {
   default     = "default"
 }
 
+variable "enable_monitoring" {
+  description = "If true, install Prometheus and Grafana after the EKS cluster exists"
+  type        = bool
+  default     = true
+}
+
+variable "monitoring_namespace" {
+  description = "Namespace for Prometheus and Grafana"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "prometheus_chart_version" {
+  description = "Optional Prometheus chart version"
+  type        = string
+  default     = null
+}
+
+variable "grafana_chart_version" {
+  description = "Optional Grafana chart version"
+  type        = string
+  default     = null
+}
+
+variable "grafana_admin_user" {
+  description = "Grafana admin username"
+  type        = string
+  default     = "admin"
+}
+
+variable "grafana_admin_password" {
+  description = "Grafana admin password"
+  type        = string
+  default     = "admin123"
+  sensitive   = true
+}
+
 variable "gitops_repo_is_private" {
   description = "Whether the GitOps repo is private and needs credentials in Argo CD"
   type        = bool
